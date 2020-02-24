@@ -40,12 +40,8 @@ SOFTWARE.
 
 #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega168P__) || defined(__AVR_ATmega328P__)
 /* alternate function PD0:RXD,PCINT16, PD1:TXD,PCINT17 */
-#ifndef SOFT_TX_PORT
-  /* Use the hardware RXD pin for soft TX */
-  #define SOFT_TX_PORT D,0    /* <port name>,<bit number> */
-#else
-  #define HDSS_DISABLE_RECIVE
-#endif
+#define USART_RX_PORT D,0
+#define USART_TX_PORT D,1
 
 #define RX_vect    USART_RX_vect
 #define UDRE_vect  USART_UDRE_vect
@@ -60,12 +56,8 @@ SOFTWARE.
 
 #elif defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega32U2__)
 /* alternate function PD2:RXD1,INT2, PD3:TXD1,INT3 */
-#ifndef SOFT_TX_PORT
-  /* Use the hardware RXD pin for soft TX */
-  #define SOFT_TX_PORT D,2    /* <port name>,<bit number> */
-#else
-  #define HDSS_DISABLE_RECIVE
-#endif
+#define USART_RX_PORT D,2
+#define USART_TX_PORT D,3
 
 #define RX_vect    USART1_RX_vect
 #define UDRE_vect  USART1_UDRE_vect
@@ -80,12 +72,8 @@ SOFTWARE.
 
 #elif defined (__AVR_ATtiny2313__)
 /* alternate function PD0:RXD, PD1:TXD */
-#ifndef SOFT_TX_PORT
-  /* Use the hardware RXD pin for soft TX */
-  #define SOFT_TX_PORT D,0    /* <port name>,<bit number> */
-#else
-  #define HDSS_DISABLE_RECIVE
-#endif
+#define USART_RX_PORT D,0
+#define USART_TX_PORT D,1
 
 #define RX_vect    USART_RX_vect
 #define UDRE_vect  USART_UDRE_vect
@@ -132,6 +120,14 @@ SOFTWARE.
 #define   UCSZ_7       0x4
 #define   UCSZ_8       0x6
 
+#ifndef SOFT_TX_PORT
+  /* One-wire half-duplex operation: Use the hardware RXD pin for soft TX */
+  #define SOFT_TX_PORT USART_RX_PORT
+#else
+  /* transmission only */
+  #define HDSS_TRANSMISSION_ONLY
+#endif
+
 #ifndef AVR_UBRR_VALUE
   #define AVR_UBRR_VALUE  0
 #endif
@@ -158,7 +154,7 @@ SOFTWARE.
 
 static void hdss_init_common(void)
 {
-#ifndef HDSS_DISABLE_RECIVE
+#ifndef HDSS_TRANSMISSION_ONLY
     //#error not yet test hdss_init_xxx()
     UBRRH = (AVR_UBRR_VALUE >> 8) ;
     UBRRL = (AVR_UBRR_VALUE & 0xff);
@@ -179,12 +175,12 @@ static void hdss_change_sender(void)
 {
     DDRx(SOFT_TX_PORT)  |= _BV(P_BITx(SOFT_TX_PORT)); // set output mode
     PORTx(SOFT_TX_PORT) |= _BV(P_BITx(SOFT_TX_PORT)); // set output HIGH
-#ifndef HDSS_DISABLE_RECIVE
+#ifndef HDSS_TRANSMISSION_ONLY
     UCSRB &= ~(RXCIEV | RXENV);
 #endif
 }
 
-#ifndef HDSS_DISABLE_RECIVE
+#ifndef HDSS_TRANSMISSION_ONLY
 static void hdss_change_receiver(void)
 {
     DDRx(SOFT_TX_PORT)  &= ~_BV(P_BITx(SOFT_TX_PORT)); // set input mode
@@ -203,7 +199,7 @@ void HDSS_INITIATOR_INIT(void)
     SREG = sreg_prev;
 }
 
-#ifndef HDSS_DISABLE_RECIVE
+#ifndef HDSS_TRANSMISSION_ONLY
 void hdss_responder_init(void)
 {
     uint8_t sreg_prev;
@@ -215,7 +211,7 @@ void hdss_responder_init(void)
 }
 #endif
 
-#ifndef HDSS_DISABLE_RECIVE
+#ifndef HDSS_TRANSMISSION_ONLY
 ISR(RX_vect) {
     //#error ISR(RX_vect) not yet
 }
@@ -335,7 +331,7 @@ void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, _Bool change_receiv
          "        sbc   r27, __zero_reg__"  "\n\t"  //S3
          "        brne  10b   \n\t" // byte_loop:   //S4,S5 -> C1
          ASM_OP2);
-#ifndef HDSS_DISABLE_RECIVE
+#ifndef HDSS_TRANSMISSION_ONLY
     if (change_receiver) {
         hdss_change_receiver();
     }
