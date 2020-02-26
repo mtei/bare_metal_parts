@@ -127,13 +127,13 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
     cli();
     ASMV(
          "        in    %[obufh], %[PORT]"   "\n\t"
-         "        ori   %[obufh], %[PIN]"   "\n\t"
-         "        ldi   %[obufl], %[PIN]"   "\n\t"
+         "        ori   %[obufh], %[PIN]"    "\n\t"
+         "        ldi   %[obufl], %[PIN]"    "\n\t"
          "        com   %[obufl]"            "\n\t"
          "        and   %[obufl], %[obufh]"  "\n\t"
          /* byte_loop: */ "10: \n\t"
-         "        ld    %[cbyte], Z+"        "\n\t"  //
-         "        ldi   %[bitcnt], 8"        "\n\t"  //
+         "        ld    %[cbyte], Z+"        "\n\t"  //S10,S11 C0
+         "        ldi   %[bitcnt], 8"        "\n\t"  //S12
          /* bit_loop: */  "20:  \n\t"
          "        out   %[PORT], %[obufh]"   "\n\t"  //S1 C1
          ASM_OP1); delay_cycles(B1_CYCLES - 2); ASMV(
@@ -152,7 +152,7 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
          "        sbc   r27, __zero_reg__"   "\n\t"  //S6
          "        breq  40f   \n\t" // loop_end:     //S7(S8 -> C3)
          ASM_OP2); delay_cycles(B3_CYCLES - 9); ASMV(
-         "        rjmp  10b"  "\n\t" // byte_loop:   //S8,S9
+         "        rjmp  10b"  "\n\t" // byte_loop:   //S8,S9 -> C0
          /*loop_end: */ "40: \n\t" //C3
          );
     SREG = sreg_prev;
