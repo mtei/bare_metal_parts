@@ -132,28 +132,33 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
          "        com   %[obufl]"            "\n\t"
          "        and   %[obufl], %[obufh]"  "\n\t"
          /* byte_loop: */ "10: \n\t"
-         "        ld    %[cbyte], Z+"        "\n\t"  //S10,S11 C0
-         "        ldi   %[bitcnt], 8"        "\n\t"  //S12
+         "        ld    %[cbyte], Z+"        "\n\t"  //S6,S7 C0
+         "        ldi   %[bitcnt], 7"        "\n\t"  //S8
          /* bit_loop: */  "20:  \n\t"
-         "        out   %[PORT], %[obufh]"   "\n\t"  //S1 C1
+         "        out   %[PORT], %[obufh]"   "\n\t"  //S1 C1  (B1)
          ASM_OP1); delay_cycles(B1_CYCLES - 2); ASMV(
-         "        sbrs  %[cbyte],7"          "\n\t"  //S2 (B1)
-         "        out   %[PORT], %[obufl]"   "\n\t"  //S1
+         "        sbrs  %[cbyte],7"          "\n\t"  //S2
+         "        out   %[PORT], %[obufl]"   "\n\t"  //S1     (B2)
          "        lsl   %[cbyte]"            "\n\t"  //S2
          ASM_OP2); delay_cycles(B2_CYCLES - 2); ASMV(
-         "        out   %[PORT], %[obufl]"   "\n\t"  //S1
+         "        out   %[PORT], %[obufl]"   "\n\t"  //S1     (B3)
          "        dec   %[bitcnt]"           "\n\t"  //S2
-         "        breq  30f   \n\t" // next byte:    //S3(S4 -> C2)
+         "        breq  30f   \n\t" // last_bit:     //S3(S4 -> C2)
          ASM_OP2); delay_cycles(B3_CYCLES - 5); ASMV(
          "        rjmp  20b   \n\t" // bit_loop:     //S4,S5 -> C1
 
-         /* next_byte: */ "30: \n\t"
-         "        subi  r26,1"               "\n\t"  //S5 C2
-         "        sbc   r27, __zero_reg__"   "\n\t"  //S6
-         "        breq  40f   \n\t" // loop_end:     //S7(S8 -> C3)
-         ASM_OP2); delay_cycles(B3_CYCLES - 9); ASMV(
-         "        rjmp  10b"  "\n\t" // byte_loop:   //S8,S9 -> C0
-         /*loop_end: */ "40: \n\t" //C3
+         /* last_bit: */ "30: \n\t"
+         ASM_OP2); delay_cycles(B3_CYCLES - 4); ASMV(
+         "        out   %[PORT], %[obufh]"   "\n\t"  //S1 C2  (B1)
+         ASM_OP2); delay_cycles(B1_CYCLES - 2); ASMV(
+         "        sbrs  %[cbyte],7"          "\n\t"  //S2
+         "        out   %[PORT], %[obufl]"   "\n\t"  //S1     (B2)
+         ASM_OP2); delay_cycles(B2_CYCLES - 1); ASMV(
+         "        out   %[PORT], %[obufl]"   "\n\t"  //S1     (B3)
+         ASM_OP2); delay_cycles(B3_CYCLES - 8); ASMV(
+         "        subi  r26,1"               "\n\t"  //S2
+         "        sbc   r27, __zero_reg__"   "\n\t"  //S3
+         "        brne  10b   \n\t" // byte_loop:    //S4(S5 -> C0)
          );
     SREG = sreg_prev;
 }
