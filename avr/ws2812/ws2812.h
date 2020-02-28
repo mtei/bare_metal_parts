@@ -42,7 +42,9 @@ extern "C" {
   #define WS2812_SEND_BYTES ws2812_send_bytes
 #endif
 
+#ifndef WS2812_AUTO_INIT
 void WS2812_INIT(void);
+#endif
 void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen);
 
 #ifdef __cplusplus

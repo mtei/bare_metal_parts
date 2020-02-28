@@ -31,12 +31,16 @@ SOFTWARE.
 #include "ws2812.h"
 
 #ifndef __OPTIMIZE__
-  #warning "Compiler optimizations disabled; functions from ws2812.c won't work as designed"
+  #error "Compiler optimizations disabled; functions from ws2812.c won't work as designed"
 #endif
 #ifndef WS2812_DI_PIN
   #error ws2812.c need define WS2812_DI_PIN
 #endif
 
+#ifdef WS2812_AUTO_INIT
+__attribute__((naked))
+__attribute__((section(".init3")))
+#endif
 void WS2812_INIT(void)
 {
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
