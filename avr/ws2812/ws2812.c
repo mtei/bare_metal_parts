@@ -1,4 +1,4 @@
-/* WS2812 data output routines */
+/* simple WS2812 data output routine for AVR with 16MHz or higher clock */
 /* clang-format off */
 /*
 MIT License
@@ -123,7 +123,7 @@ print "total = #{(b1_cycles+b2_cycles+b3_cycles)*F_SYC} nsec\n"
 __attribute__((noinline))
 void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
 {
-    uint8_t cbyte, obuf, bitcnt, obufh, obufl;
+    uint8_t cbyte, bitcnt, obufh, obufl;
     uint8_t sreg_prev;
 
     if (datalen == 0) { return; }

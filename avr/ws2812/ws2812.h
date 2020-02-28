@@ -1,4 +1,4 @@
-/* WS2812 data output routines */
+/* simple WS2812 data output routine for AVR with 16MHz or higher clock */
 /* clang-format off */
 #ifndef WS2812_SEND_BYTES_H
 #define WS2812_SEND_BYTES_H
