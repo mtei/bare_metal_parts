@@ -35,16 +35,11 @@ extern "C" {
 #ifdef WS2812_FUNC_PREFIX
   #define _JOIN_NAME(prefix, body) prefix##body
   #define JOIN_NAME(prefix, body) _JOIN_NAME(prefix, body)
-  #define WS2812_INIT JOIN_NAME(WS2812_FUNC_PREFIX,_init)
   #define WS2812_SEND_BYTES JOIN_NAME(WS2812_FUNC_PREFIX,_send_bytes)
 #else
-  #define WS2812_INIT ws2812_init
   #define WS2812_SEND_BYTES ws2812_send_bytes
 #endif
 
-#ifndef WS2812_AUTO_INIT
-void WS2812_INIT(void);
-#endif
 void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen);
 
 #ifdef __cplusplus

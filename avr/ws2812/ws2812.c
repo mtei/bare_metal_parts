@@ -37,20 +37,6 @@ SOFTWARE.
   #error ws2812.c need define WS2812_DI_PIN
 #endif
 
-#ifdef WS2812_AUTO_INIT
-__attribute__((naked))
-__attribute__((section(".init3")))
-#endif
-void WS2812_INIT(void)
-{
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-        /* set output mode */
-        DDRx(WS2812_DI_PIN)  |= _BV(P_BITx(WS2812_DI_PIN));
-        /* set output LOW */
-        PORTx(WS2812_DI_PIN) &= ~_BV(P_BITx(WS2812_DI_PIN));
-    }
-}
-
 /*
      +--------+
      |        |                |   0_code
@@ -129,6 +115,8 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
     if (datalen == 0) { return; }
     sreg_prev = SREG;
     cli();
+    DDRx(WS2812_DI_PIN)  |= _BV(P_BITx(WS2812_DI_PIN));  /* set output mode */
+    PORTx(WS2812_DI_PIN) &= ~_BV(P_BITx(WS2812_DI_PIN)); /* output LOW */
     ASMV(
          "        in    %[obufh], %[PORT]"   "\n\t"
          "        ori   %[obufh], %[PIN]"    "\n\t"
