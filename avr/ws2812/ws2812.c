@@ -162,7 +162,8 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
 #ifdef WS2812_DI_FREEPIN
 
 #define ASM_OP3 \
-    :  [cbyte]   "=r"(cbyte)   \
+    :  [tmp]     "=r"(tmp)     \
+     , [cbyte]   "=r"(cbyte)   \
      , [datap]   "+z"(datap)   \
      , [datalen] "+x"(datalen) \
      , [bitcnt]  "=d"(bitcnt)  \
@@ -172,7 +173,8 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
      , [pin]     "r"(bitpattern)  \
 
 #define ASM_OP4 \
-    :  [cbyte]   "+r"(cbyte)   \
+    :  [tmp]     "+r"(tmp)     \
+     , [cbyte]   "+r"(cbyte)   \
      , [datap]   "+z"(datap)   \
      , [datalen] "+x"(datalen) \
      , [bitcnt]  "+d"(bitcnt)  \
@@ -185,14 +187,14 @@ __attribute__((noinline))
 void ws2812_send_bytes_port(const uint8_t *datap, uint16_t datalen,
                        volatile uint8_t *port, uint8_t bitpattern)
 {
-    uint8_t cbyte, bitcnt, obufh, obufl;
+    uint8_t cbyte, bitcnt, obufh, obufl, tmp;
     uint8_t sreg_prev;
 
     if (datalen == 0) { return; }
     sreg_prev = SREG;
     cli();
-    PORT2DDR(port) |= bitpattern;       /* set output mode */
-    *port          &= ~_BV(bitpattern); /* output LOW */
+    PORT2DDR(port) |= bitpattern;  /* set output mode */
+    *port          &= ~bitpattern; /* output LOW */
     ASMV(
          "        ld    %[obufh], Y"         "\n\t"
          "        or    %[obufh], %[pin]"    "\n\t"
@@ -204,9 +206,11 @@ void ws2812_send_bytes_port(const uint8_t *datap, uint16_t datalen,
          "        ldi   %[bitcnt], 7"        "\n\t"  //S9
          /* bit_loop: */  "20:  \n\t"
          "        st    Y, %[obufh]"         "\n\t"  //S1,S2 C1  (B1)
-         ASM_OP3); delay_cycles(B1_CYCLES - 3); ASMV(
-         "        sbrs  %[cbyte],7"          "\n\t"  //S3
-         "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B2)
+         ASM_OP3); delay_cycles(B1_CYCLES - 5); ASMV(
+         "        mov   %[tmp],%[obufh]"     "\n\t"  //S3
+         "        sbrs  %[cbyte],7"          "\n\t"  //S4
+         "        mov   %[tmp],%[obufl]"     "\n\t"  //S5
+         "        st    Y, %[tmp]"           "\n\t"  //S1,S2     (B2)
          "        lsl   %[cbyte]"            "\n\t"  //S3
          ASM_OP4); delay_cycles(B2_CYCLES - 3); ASMV(
          "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B3)
@@ -218,9 +222,11 @@ void ws2812_send_bytes_port(const uint8_t *datap, uint16_t datalen,
          /* last_bit: */ "30: \n\t"
          ASM_OP4); delay_cycles(B3_CYCLES - 5); ASMV(
          "        st    Y, %[obufh]"         "\n\t"  //S1,S2 C2  (B1)
-         ASM_OP4); delay_cycles(B1_CYCLES - 3); ASMV(
-         "        sbrs  %[cbyte],7"          "\n\t"  //S3
-         "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B2)
+         ASM_OP4); delay_cycles(B1_CYCLES - 5); ASMV(
+         "        mov   %[tmp],%[obufh]"     "\n\t"  //S3
+         "        sbrs  %[cbyte],7"          "\n\t"  //S4
+         "        mov   %[tmp],%[obufl]"     "\n\t"  //S5
+         "        st    Y, %[tmp]"           "\n\t"  //S1,S2     (B2)
          ASM_OP4); delay_cycles(B2_CYCLES - 2); ASMV(
          "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B3)
          ASM_OP4); delay_cycles(B3_CYCLES - 9); ASMV(
