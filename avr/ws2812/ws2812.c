@@ -33,8 +33,8 @@ SOFTWARE.
 #ifndef __OPTIMIZE__
   #error "Compiler optimizations disabled; functions from ws2812.c won't work as designed"
 #endif
-#ifndef WS2812_DI_PIN
-  #error ws2812.c need define WS2812_DI_PIN
+#if !defined(WS2812_DI_PIN) && !defined(WS2812_DI_FREEPIN)
+  #error ws2812.c need define WS2812_DI_PIN or WS2812_DI_FREEPIN
 #endif
 
 /*
@@ -60,9 +60,6 @@ SOFTWARE.
 #define B2_CYCLES (((F_CPU / 1000) * B2_TIME + 500000) / 1000000)
 #define B3_CYCLES (((F_CPU / 1000) * B3_TIME + 500000) / 1000000)
 
-#define WS2812_PORT _SFR_IO_ADDR(PORTx(WS2812_DI_PIN))
-#define WS2812_PIN  (0xFF)&(_BV(P_BITx(WS2812_DI_PIN)))
-
 /* Ruby script for checking calculation results
 #! /usr/bin/ruby
 F_CPU = 16000000
@@ -84,6 +81,12 @@ print "total = #{(b1_cycles+b2_cycles+b3_cycles)*F_SYC} nsec\n"
  */
 
 #define ASMV asm volatile
+
+#ifdef WS2812_DI_PIN
+
+#define WS2812_PORT _SFR_IO_ADDR(PORTx(WS2812_DI_PIN))
+#define WS2812_PIN  (0xFF)&(_BV(P_BITx(WS2812_DI_PIN)))
+
 #define ASM_OP1 \
     :  [cbyte]   "=r"(cbyte)   \
      , [datap]   "+z"(datap)   \
@@ -154,4 +157,78 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
          );
     SREG = sreg_prev;
 }
+#endif /* WS2812_DI_PIN */
 
+#ifdef WS2812_DI_FREEPIN
+
+#define ASM_OP3 \
+    :  [cbyte]   "=r"(cbyte)   \
+     , [datap]   "+z"(datap)   \
+     , [datalen] "+x"(datalen) \
+     , [bitcnt]  "=d"(bitcnt)  \
+     , [obufh]   "=d"(obufh)   \
+     , [obufl]   "=d"(obufl)   \
+    :  [port]    "y"(port)     \
+     , [pin]     "r"(bitpattern)  \
+
+#define ASM_OP4 \
+    :  [cbyte]   "+r"(cbyte)   \
+     , [datap]   "+z"(datap)   \
+     , [datalen] "+x"(datalen) \
+     , [bitcnt]  "+d"(bitcnt)  \
+     , [obufh]   "+d"(obufh)   \
+     , [obufl]   "+d"(obufl)   \
+    :  [port]    "y"(port)     \
+
+
+__attribute__((noinline))
+void ws2812_send_bytes_port(const uint8_t *datap, uint16_t datalen,
+                       volatile uint8_t *port, uint8_t bitpattern)
+{
+    uint8_t cbyte, bitcnt, obufh, obufl;
+    uint8_t sreg_prev;
+
+    if (datalen == 0) { return; }
+    sreg_prev = SREG;
+    cli();
+    PORT2DDR(port) |= bitpattern;       /* set output mode */
+    *port          &= ~_BV(bitpattern); /* output LOW */
+    ASMV(
+         "        ld    %[obufh], Y"         "\n\t"
+         "        or    %[obufh], %[pin]"    "\n\t"
+         "        mov   %[obufl], %[pin]"    "\n\t"
+         "        com   %[obufl]"            "\n\t"
+         "        and   %[obufl], %[obufh]"  "\n\t"
+         /* byte_loop: */ "10: \n\t"
+         "        ld    %[cbyte], Z+"        "\n\t"  //S7,S8 C0
+         "        ldi   %[bitcnt], 7"        "\n\t"  //S9
+         /* bit_loop: */  "20:  \n\t"
+         "        st    Y, %[obufh]"         "\n\t"  //S1,S2 C1  (B1)
+         ASM_OP3); delay_cycles(B1_CYCLES - 3); ASMV(
+         "        sbrs  %[cbyte],7"          "\n\t"  //S3
+         "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B2)
+         "        lsl   %[cbyte]"            "\n\t"  //S3
+         ASM_OP4); delay_cycles(B2_CYCLES - 3); ASMV(
+         "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B3)
+         "        dec   %[bitcnt]"           "\n\t"  //S3
+         "        breq  30f   \n\t" // last_bit:     //S4(S5 -> C2)
+         ASM_OP4); delay_cycles(B3_CYCLES - 6); ASMV(
+         "        rjmp  20b   \n\t" // bit_loop:     //S5,S6 -> C1
+
+         /* last_bit: */ "30: \n\t"
+         ASM_OP4); delay_cycles(B3_CYCLES - 5); ASMV(
+         "        st    Y, %[obufh]"         "\n\t"  //S1,S2 C2  (B1)
+         ASM_OP4); delay_cycles(B1_CYCLES - 3); ASMV(
+         "        sbrs  %[cbyte],7"          "\n\t"  //S3
+         "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B2)
+         ASM_OP4); delay_cycles(B2_CYCLES - 2); ASMV(
+         "        st    Y, %[obufl]"         "\n\t"  //S1,S2     (B3)
+         ASM_OP4); delay_cycles(B3_CYCLES - 9); ASMV(
+         "        subi  r26,1"               "\n\t"  //S3
+         "        sbc   r27, __zero_reg__"   "\n\t"  //S4
+         "        brne  10b   \n\t" // byte_loop:    //S5(S6 -> C0)
+         );
+    SREG = sreg_prev;
+}
+
+#endif /* WS2812_DI_FREEPIN */

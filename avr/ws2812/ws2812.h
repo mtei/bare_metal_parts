@@ -40,7 +40,12 @@ extern "C" {
   #define WS2812_SEND_BYTES ws2812_send_bytes
 #endif
 
-void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen);
+    /* WS2812_DI_PIN */
+    void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen);
+
+    /* WS2812_DI_FREEPIN*/
+    void ws2812_send_bytes_port(const uint8_t *datap, uint16_t datalen,
+                                volatile uint8_t *port, uint8_t bitpattern);
 
 #ifdef __cplusplus
 }
