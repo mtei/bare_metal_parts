@@ -50,6 +50,20 @@ SOFTWARE.
             bit width
 */
 
+#ifdef WS2812_AUTO_INIT
+__attribute__((naked))
+__attribute__((section(".init3")))
+#endif
+void WS2812_INIT(void)
+{
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        /* set output mode */
+        DDRx(WS2812_DI_PIN)  |= _BV(P_BITx(WS2812_DI_PIN));
+        /* set output LOW */
+        PORTx(WS2812_DI_PIN) &= ~_BV(P_BITx(WS2812_DI_PIN));
+    }
+}
+
 /* one cycle of 16MHz = 62.5ns */
 #define BIT_TIME 1250  // 62.5ns * 20 = 1250.0
 #define B1_TIME   312  // 62.5ns * 5  = 312.5
@@ -118,8 +132,10 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
     if (datalen == 0) { return; }
     sreg_prev = SREG;
     cli();
+#ifdef WS2812_EVERY_TIME_INIT
     DDRx(WS2812_DI_PIN)  |= _BV(P_BITx(WS2812_DI_PIN));  /* set output mode */
     PORTx(WS2812_DI_PIN) &= ~_BV(P_BITx(WS2812_DI_PIN)); /* output LOW */
+#endif
     ASMV(
          "        in    %[obufh], %[PORT]"   "\n\t"
          "        ori   %[obufh], %[PIN]"    "\n\t"
@@ -161,6 +177,12 @@ void WS2812_SEND_BYTES(const uint8_t *datap, uint16_t datalen)
 
 #ifdef WS2812_DI_FREEPIN
 
+void ws2812_init_port(volatile uint8_t *port, uint8_t bitpattern)
+{
+    PORT2DDR(port) |= bitpattern;  /* set output mode */
+    *port          &= ~bitpattern; /* output LOW */
+}
+
 #define ASM_OP3 \
     :  [tmp]     "=r"(tmp)     \
      , [cbyte]   "=r"(cbyte)   \
@@ -193,8 +215,10 @@ void ws2812_send_bytes_port(const uint8_t *datap, uint16_t datalen,
     if (datalen == 0) { return; }
     sreg_prev = SREG;
     cli();
+#ifdef WS2812_EVERY_TIME_INIT
     PORT2DDR(port) |= bitpattern;  /* set output mode */
     *port          &= ~bitpattern; /* output LOW */
+#endif
     ASMV(
          "        ld    %[obufh], Y"         "\n\t"
          "        or    %[obufh], %[pin]"    "\n\t"
