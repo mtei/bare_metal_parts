@@ -5,11 +5,22 @@ workfile=/tmp/detect_$$_
 USB=
 
 ls /dev/tty* > ${workfile}1;
-if [ `grep 'tty[.]usbmodem' ${workfile}1 | wc -l` = 1 ]; then
-    printf "Detecting USB port.  " >&2
-    USB=`grep 'tty[.]usbmodem' ${workfile}1`
-    printf "= $USB" >&2
-else
+if [ `grep 'tty[.]usbmodem' ${workfile}1 | wc -l` != 0 ]; then
+    tty_list=`grep 'tty[.]usbmodem' ${workfile}1`
+    printf "There are already a few TTYs\n$tty_list\n\n" >&2
+    for a_tty in $tty_list
+    do
+	printf "$a_tty: is this ? (y/n) " >&2
+	read ans
+	if [ $ans = "y" ]; then
+	    USB=$a_tty
+	    printf "Detecting USB port.  " >&2
+	    printf "= $USB" >&2
+	    break
+	fi
+    done
+fi
+if [ -z $USB ]; then
     printf "Detecting USB port, reset your controller now.  " >&2
     while true; do
 	sleep 0.5
