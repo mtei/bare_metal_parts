@@ -1,2 +1,2 @@
-# bare_metal_library
-Bear-Metal environment library for AVR, ARM etc.
+# bare_metal_parts
+Bear-Metal environment small routines for AVR, ARM etc.
