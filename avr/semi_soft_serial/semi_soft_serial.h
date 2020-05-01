@@ -28,6 +28,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// compile options
+//  -DF_CPU=16000000UL
+//  -DPARITY_ENABLE
+//  -DAVR_UBRR_VALUE=0
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,6 +50,7 @@ extern "C" {
 void HDSS_INITIATOR_INIT(void);
 void hdss_responder_init(void);
 void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, _Bool change_receiver);
+void hdss_set_parity_mode_even(_Bool is_even);
 
 #ifdef __cplusplus
 }

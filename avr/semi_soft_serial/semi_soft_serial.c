@@ -34,10 +34,6 @@ SOFTWARE.
   #warning "Compiler optimizations disabled; functions from semi_soft_serial.c won't work as designed"
 #endif
 
-// #define F_CPU 16000000UL
-// #define PARITY ODD_PARITY // EVEN_PARITY
-// #define AVR_UBRR_VALUE  0
-
 #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega168P__) || defined(__AVR_ATmega328P__)
 /* alternate function PD0:RXD,PCINT16, PD1:TXD,PCINT17 */
 #define USART_RX_PORT D,0
@@ -134,10 +130,24 @@ SOFTWARE.
 
 #define ODD_PARITY  0xff
 #define EVEN_PARITY 0
-#ifdef PARITY
-  #define PARITY_ENABLE
-#else
-  #define PARITY ODD_PARITY // dummy
+
+static uint8_t parity_mode = EVEN_PARITY;
+
+#ifdef PARITY_ENABLE
+void hdss_set_parity_mode_even(_Bool is_even)
+{
+    if (is_even) {
+        parity_mode = EVEN_PARITY;
+#ifndef HDSS_TRANSMISSION_ONLY
+        UCSRC = UPM_EVEN | (UCSRC & ~(UPM_EVEN|UPM_ODD));
+#endif
+    } else {
+        parity_mode = ODD_PARITY;
+#ifndef HDSS_TRANSMISSION_ONLY
+        UCSRC = UPM_ODD | (UCSRC & ~(UPM_EVEN|UPM_ODD));
+#endif
+    }
+}
 #endif
 
 #define _PINx(p,b)  PIN##p
@@ -162,11 +172,7 @@ static void hdss_init_common(void)
     UCSRB = 0;
     UCSRC = (UMSEL_ASYNC | UPM_NONE | USBS_1 | UCSZ_8);
   #ifdef PARITY_ENABLE
-    #if PARITY == EVEN_PARITY
-    UCSRC |= UPM_EVEN;
-    #elif PARITY == ODD_PARITY
-    UCSRC |= UPM_ODD;
-    #endif
+    hdss_set_parity_mode_even(parity_mode == EVEN_PARITY);
   #endif
 #endif
 }
@@ -256,7 +262,7 @@ ISR(RX_vect) {
      , [parity]  "=d"(parity)  \
     :  [PORT] "I"(SEMISOFT_SERIAL_PORT) \
      , [MASK] "M"(SEMISOFT_SERIAL_PIN) \
-     , [PARITY_INIT] "M" (PARITY) \
+     , [parity_init] "r" (parity_init) \
 
 #define ASM_OP2 \
     :  [tmp]     "+d"(tmp)     \
@@ -268,18 +274,19 @@ ISR(RX_vect) {
      , [parity]  "+d"(parity)  \
     :  [PORT] "I"(SEMISOFT_SERIAL_PORT) \
      , [MASK] "M"(SEMISOFT_SERIAL_PIN) \
-     , [PARITY_INIT] "M" (PARITY) \
+     , [parity_init] "r" (parity_init) \
 
 #define delay_cycles(x) __builtin_avr_delay_cycles(x)
 
 __attribute__((noinline))
 void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, _Bool change_receiver)
 {
-    uint8_t tmp, cbyte, obuf, bitcnt, parity;
+    uint8_t tmp, cbyte, obuf, bitcnt, parity, parity_init;
     uint8_t sreg_prev;
 
     if (datalen == 0) { return; }
 
+    parity_init = parity_mode;
     sreg_prev = SREG;
     cli();
     ASMV(
@@ -287,7 +294,7 @@ void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, _Bool change_receiv
          /* byte_loop: */ "10: \n\t"
          "        ld    %[cbyte], Z+"       "\n\t"  //S6,S7 C1
          "        ldi   %[bitcnt], 9"       "\n\t"  //S8
-         "        ldi   %[parity], %[PARITY_INIT]" "\n\t"  // S9
+         "        mov   %[parity], %[parity_init]" "\n\t"  // S9
          "        andi  %[obuf], %[MASK]"   "\n\t"  //S10(*) -- set start bit
          /* bit_loop: */  "20:  \n\t"
          "        out   %[PORT], %[obuf]"   "\n\t"  //S1
