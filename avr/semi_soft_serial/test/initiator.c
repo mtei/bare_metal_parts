@@ -70,6 +70,9 @@ int main(void)
     }
 
     while(1) {
+#ifdef PARITY_ENABLE
+        hdss_set_parity_mode_even(true);
+#endif
         for( uint16_t i = 0; i <= 255; i++ ) {
             data[0] = i;
             data[1] = i+1;
@@ -77,6 +80,9 @@ int main(void)
             hdss_send_bytes(data, 2, false);
         }
         led_blink(100,900);
+#ifdef PARITY_ENABLE
+        hdss_set_parity_mode_even(false);
+#endif
         for( int16_t i = 255; i >= 0; i-- ) {
             data[0] = i;
             data[1] = i+1;
