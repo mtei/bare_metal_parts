@@ -3,6 +3,7 @@ waitstr=("-" "\\" "|" "/")
 count=0
 workfile=/tmp/detect_$$_
 USB=
+trap 'cd /tmp/; rm -f ${workfile}1 ${workfile}2; echo; exit' 0 1 2 15
 
 ls /dev/tty* > ${workfile}1;
 if [ `grep 'tty[.]usbmodem' ${workfile}1 | wc -l` != 0 ]; then
