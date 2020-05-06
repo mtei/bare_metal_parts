@@ -76,7 +76,7 @@ int main(void)
         for( uint16_t i = 0; i <= 255; i++ ) {
             data[0] = i;
             data[1] = i+1;
-            led_blink(100,100);
+            led_blink(100,900);
             hdss_send_bytes(data, 2, false);
         }
         led_blink(100,900);
@@ -86,7 +86,7 @@ int main(void)
         for( int16_t i = 255; i >= 0; i-- ) {
             data[0] = i;
             data[1] = i+1;
-            led_blink(100,100);
+            led_blink(100,900);
             hdss_send_bytes(data, 2, false);
         }
         led_blink(100,900);
