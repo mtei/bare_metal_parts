@@ -25,9 +25,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <stdint.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <util/atomic.h>
 #include "semi_soft_serial.h"
 
 #ifndef __OPTIMIZE__
@@ -64,7 +64,7 @@ SOFTWARE.
 #define UDR        UDR1     /* USART I/O Data Register 1 */
 #define UCSRA      UCSR1A   /* USART Control and Status Register 1 A */
 #define UCSRB      UCSR1B   /* USART Control and Status Register 1 B */
-#define UCSRC      UCSR1C   /* USART Control and Status Register 0 C */
+#define UCSRC      UCSR1C   /* USART Control and Status Register 1 C */
 
 #elif defined (__AVR_ATtiny2313__)
 /* alternate function PD0:RXD, PD1:TXD */
@@ -78,19 +78,19 @@ SOFTWARE.
 //#define UBRRL      UBRRL   /* USART Baud Rate Register 0 Low */
 //#define UBRRH      UBRRH   /* USART Baud Rate Register 0 High */
 //#define UDR        UDR     /* USART I/O Data Register 0 */
-//#define UCSRA      UCSRA   /* USART Control and Status Register 1 A */
-//#define UCSRB      UCSRB   /* USART Control and Status Register 1 B */
-//#define UCSRC      UCSRC   /* USART Control and Status Register 0 C */
+//#define UCSRA      UCSRA   /* USART Control and Status Register A */
+//#define UCSRB      UCSRB   /* USART Control and Status Register B */
+//#define UCSRC      UCSRC   /* USART Control and Status Register C */
 
 #else
    #error semi_soft_serial.c not yet support your AVR
 #endif
 
 /* USART Control and Status Register x A */
-#define   RXCV   (1<<7)   /*   Recive Complate (R only) */
+#define   RXCV   (1<<7)   /*   Receive Complate (R only) */
 #define   TXCV   (1<<6)   /*   Transmit Complate (R/W) */
 #define   UDREV  (1<<5)   /*   Transmit Data Register Empty (R only) */
-#define   FEV    (1<<4)   /*   Framing Erreor (R only) */
+#define   FEV    (1<<4)   /*   Framing Error (R only) */
 #define   DORV   (1<<3)   /*   Data OverRun (R only) */
 #define   UPEV   (1<<2)   /*   Parity Error (R only) */
 #define   U2XV   (1<<1)   /*   Double the USART Transmission Speed (R/W) */
@@ -134,7 +134,7 @@ SOFTWARE.
 static uint8_t parity_mode = EVEN_PARITY;
 
 #ifdef PARITY_ENABLE
-void hdss_set_parity_mode_even(_Bool is_even)
+void hdss_set_parity_mode_even(bool is_even)
 {
     if (is_even) {
         parity_mode = EVEN_PARITY;
@@ -159,11 +159,22 @@ void hdss_set_parity_mode_even(_Bool is_even)
 #define _P_BITx(p,b) b
 #define P_BITx(p) _P_BITx(p)
 
+#ifdef HDSS_DEBUG_PIN
+#define DEBUG_PIN_INIT DDRx(HDSS_DEBUG_PIN) |= _BV(P_BITx(HDSS_DEBUG_PIN));
+#define DEBUG_PIN_ON   PORTx(HDSS_DEBUG_PIN) |= _BV(P_BITx(HDSS_DEBUG_PIN));
+#define DEBUG_PIN_OFF  PORTx(HDSS_DEBUG_PIN) &= ~_BV(P_BITx(HDSS_DEBUG_PIN));
+#else
+#define DEBUG_PIN_INIT
+#define DEBUG_PIN_ON
+#define DEBUG_PIN_OFF
+#endif
+
 #define AVR_USART_SAMPLES 16
 #define BITWIDTH_CYCLE (AVR_USART_SAMPLES * (AVR_UBRR_VALUE + 1))
 
 static void hdss_init_common(void)
 {
+    DEBUG_PIN_INIT;
 #ifndef HDSS_TRANSMISSION_ONLY
     //#error not yet test hdss_init_xxx()
     UBRRH = (AVR_UBRR_VALUE >> 8) ;
@@ -204,24 +215,6 @@ void HDSS_INITIATOR_INIT(void)
     hdss_change_sender();
     SREG = sreg_prev;
 }
-
-#ifndef HDSS_TRANSMISSION_ONLY
-void hdss_responder_init(void)
-{
-    uint8_t sreg_prev;
-    sreg_prev = SREG;
-    cli();
-    hdss_init_common();
-    hdss_change_receiver();
-    SREG = sreg_prev;
-}
-#endif
-
-#ifndef HDSS_TRANSMISSION_ONLY
-ISR(RX_vect) {
-    //#error ISR(RX_vect) not yet
-}
-#endif
 
 //__builtin_avr_delay_cycles(4);   //S13,14, 15,16
 //(16-4) = 12  bit_loop
@@ -279,7 +272,7 @@ ISR(RX_vect) {
 #define delay_cycles(x) __builtin_avr_delay_cycles(x)
 
 __attribute__((noinline))
-void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, _Bool change_receiver)
+void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, bool change_receiver)
 {
     uint8_t tmp, cbyte, obuf, bitcnt, parity, parity_init;
     uint8_t sreg_prev;
@@ -345,3 +338,117 @@ void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, _Bool change_receiv
 #endif
     SREG = sreg_prev;
 }
+
+#ifndef HDSS_TRANSMISSION_ONLY
+void hdss_responder_init(void)
+{
+    uint8_t sreg_prev;
+    sreg_prev = SREG;
+    cli();
+    hdss_init_common();
+    hdss_change_receiver();
+    SREG = sreg_prev;
+}
+
+#ifndef HDSS_RECEIVE_BUFFER_SIZE
+  #define HDSS_RECEIVE_BUFFER_SIZE 8
+#endif
+
+typedef struct receive_buf_t {
+    uint8_t  status;
+    uint8_t  count;
+    uint8_t  index;
+    uint8_t  buf[HDSS_RECEIVE_BUFFER_SIZE];
+} receive_buf_t;
+
+static receive_buf_t receive_buf = {};
+
+static inline
+void queue_data(uint8_t data)
+{
+    uint8_t index;
+    if (receive_buf.count < sizeof(receive_buf.buf)) {
+        index = (receive_buf.index+receive_buf.count) % sizeof(receive_buf.buf);
+        receive_buf.buf[index] = data;
+        receive_buf.count ++;
+    }
+}
+
+static inline
+int16_t dequeue_data(void)
+{
+    uint8_t result;
+    if (receive_buf.count > 0) {
+        result = receive_buf.buf[receive_buf.index];
+        receive_buf.count --;
+        receive_buf.index = (receive_buf.index + 1) % sizeof(receive_buf.buf);
+        return result;
+    }
+    return HDSS_NO_DATA;
+}
+
+ISR(RX_vect) {
+    uint8_t status;
+    DEBUG_PIN_ON;
+    if (receive_buf.status) {
+        /* already error */
+        while (UCSRA & RXCV) {
+            UDR; /* Ignore incoming data */
+        }
+        DEBUG_PIN_OFF;
+        return;
+    }
+    status = (UCSRA & (RXCV|FEV|DORV|UPEV));
+    if (status & (FEV|DORV|UPEV)) {
+        receive_buf.status = status;
+        while (UCSRA & RXCV) {
+            UDR; /* Ignore incoming data */
+        }
+        DEBUG_PIN_OFF;
+        return;
+    } else if (status & RXCV) {
+        uint8_t data;
+        data = UDR;
+        if (receive_buf.count < sizeof(receive_buf.buf)) {
+            queue_data(data);
+        } else {
+            receive_buf.status = DORV;
+        }
+    }
+    DEBUG_PIN_OFF;
+}
+
+int16_t hdss_receive_byte(void)
+{
+    int16_t result;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        result = dequeue_data();
+        if (result == HDSS_NO_DATA && receive_buf.status) {
+            result = HDSS_ERROR;
+        }
+    }
+    return result;
+}
+
+int8_t hdss_get_receive_error(void)
+{
+    int8_t result;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        result = 0;
+        if (receive_buf.status) {
+            if (receive_buf.status & FEV) {
+                result |= HDSS_FRAMING_ERROR;
+            }
+            if (receive_buf.status & UPEV) {
+                result |= HDSS_PARITY_ERROR;
+            }
+            if (receive_buf.status & DORV) {
+                result |= HDSS_OVERUN_ERROR;
+            }
+            receive_buf.status = 0;
+        }
+    }
+    return result;
+}
+
+#endif /* HDSS_TRANSMISSION_ONLY */
