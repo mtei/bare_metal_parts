@@ -116,6 +116,8 @@ SOFTWARE.
 #define   UCSZ_7       0x4
 #define   UCSZ_8       0x6
 
+#define   BORV   (1<<0)   /*   soft buffer over run */
+
 #ifndef SOFT_TX_PORT
   /* One-wire half-duplex operation: Use the hardware RXD pin for soft TX */
   #define SOFT_TX_PORT USART_RX_PORT
@@ -393,29 +395,39 @@ ISR(RX_vect) {
     if (receive_buf.status) {
         /* already error */
         while (UCSRA & RXCV) {
+            DEBUG_PIN_OFF;
             UDR; /* Ignore incoming data */
+            DEBUG_PIN_ON;
         }
-        DEBUG_PIN_OFF;
+        DEBUG_PIN_ON;
         return;
     }
-    status = (UCSRA & (RXCV|FEV|DORV|UPEV));
-    if (status & (FEV|DORV|UPEV)) {
-        receive_buf.status = status;
-        while (UCSRA & RXCV) {
-            UDR; /* Ignore incoming data */
+    do {
+        status = (UCSRA & (RXCV|FEV|DORV|UPEV));
+        if (status & (FEV|DORV|UPEV)) {
+            DEBUG_PIN_OFF;
+            receive_buf.status |= status;
+            while (UCSRA & RXCV) {
+                DEBUG_PIN_ON;
+                UDR; /* Ignore incoming data */
+                DEBUG_PIN_OFF;
+            }
+            DEBUG_PIN_ON;
+            return;
+        } else if (status & RXCV) {
+            uint8_t data;
+            DEBUG_PIN_OFF;
+            data = UDR;
+            DEBUG_PIN_ON;
+            if (receive_buf.count < sizeof(receive_buf.buf)) {
+                queue_data(data);
+                DEBUG_PIN_OFF;
+            } else {
+                receive_buf.status |= BORV;
+                break;
+            }
         }
-        DEBUG_PIN_OFF;
-        return;
-    } else if (status & RXCV) {
-        uint8_t data;
-        data = UDR;
-        if (receive_buf.count < sizeof(receive_buf.buf)) {
-            queue_data(data);
-        } else {
-            receive_buf.status = DORV;
-        }
-    }
-    DEBUG_PIN_OFF;
+    } while (UCSRA & RXCV);
 }
 
 int16_t hdss_receive_byte(void)
@@ -444,6 +456,9 @@ int8_t hdss_get_receive_error(void)
             }
             if (receive_buf.status & DORV) {
                 result |= HDSS_OVERUN_ERROR;
+            }
+            if (receive_buf.status & BORV) {
+                result |= HDSS_BUFFER_OVERUN_ERROR;
             }
             receive_buf.status = 0;
         }
