@@ -16,8 +16,9 @@ help:
 all: initiator_pro.elf responder_pro.elf
 
 clean:
-	$(RM) initiator_*.hex initiator_*.o responder_*.o semi_soft_serial_*.o
-	$(RM) debug_serial_*.o
+	$(RM) initiator_*.hex initiator_*.elf initiator_*.o
+	$(RM) responder_*.hex responder_*.elf responder_*.o
+	$(RM) semi_soft_serial_*.o debug_serial_*.o
 
 flash-i_pro: initiator_pro.hex
 	avrdude -p atmega32u4 -c avr109  -P `sh $(DETECTUSB)` -U flash:w:$^

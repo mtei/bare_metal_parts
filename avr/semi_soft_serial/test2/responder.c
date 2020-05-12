@@ -96,6 +96,23 @@ int16_t receive_byte(void)
     return data;
 }
 
+void skip_data(void)
+{
+    int16_t data;
+
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        while( 1 ) {
+            data = receive_byte();
+            if (data == HDSS_ERROR) {
+                hdss_get_receive_error();
+                break;
+            } else if (data == HDSS_NO_DATA) {
+                break;
+            }
+        }
+    }
+}
+
 #ifndef DELTA
   #define DELTA 0
 #endif
@@ -103,12 +120,11 @@ int16_t receive_byte(void)
   #define BULK 0
 #endif
 
-uint8_t  data[HDSS_RECEIVE_BUFFER_SIZE+DELTA*2+2];
+uint8_t  data[HDSS_RECEIVE_BUFFER_SIZE+DELTA*2+10];
 
 int main(void)
 {
     int16_t data0;
-
     disable_usb();
     hdss_responder_init();
     debug_print_initiator_init();
@@ -134,11 +150,16 @@ int main(void)
             }
         } else {
             DEBUG_PIN_OFF;
-            data[0] = hdss_get_receive_error();
-            data[1] = 0;
+            data[0] = 0;
+            data[1] = hdss_get_receive_error();
+            data[2] = 0;
             DEBUG_PIN_ON;
-            debug_print_send_bytes(data, 2, false);
+            debug_print_send_bytes(data, 3, false);
             DEBUG_PIN_OFF;
+            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+                DELAY(3000);
+            }
+            skip_data();
         }
     }
 #else
@@ -148,17 +169,29 @@ int main(void)
         hdss_set_parity_mode_even(true);
  #endif
         uint16_t i;
+        uint8_t err = 0;
         for (i = 0; i < BULK; i++ ) {
             data0 = receive_byte();
             if (data0 >= 0) {
                 data[i] = data0;
             } else {
-                data[i] = 0xff;
+                data[i] = 0x0;
                 data[i+1] = hdss_get_receive_error();
-                i++;
+                data[i+2] = 0x0;
+                i += 2;
+                err = 1;
             }
         }
         debug_print_send_bytes(data, i, false);
+        if (err) {
+            DEBUG_PIN_ON;
+            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+                DELAY(3000);
+            }
+            DEBUG_PIN_OFF;
+            skip_data();
+            err = 0;
+        }
     }
 #endif
 }
