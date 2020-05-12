@@ -99,20 +99,22 @@ int main(void)
             for( uint16_t j = 0; j < HDSS_RECEIVE_BUFFER_SIZE+DELTA; j++ ) {
                 data[j] = i+j;
             }
-            led_blink(300,200);
+            led_blink(100,200);
             send_bytes(data, HDSS_RECEIVE_BUFFER_SIZE+DELTA);
         }
-        led_blink(100,400);
+        led_blink(100,900);
+        led_blink(100,900);
 #ifdef PARITY_ENABLE
         hdss_set_parity_mode_even(false);
 #endif
         for( int16_t i = 255; i >= 0; i-- ) {
-            for( uint16_t j = 0; j < HDSS_RECEIVE_BUFFER_SIZE+DELTA; j++ ) {
-                data[j] = i+j;
+            for( uint16_t j = 0; j < HDSS_RECEIVE_BUFFER_SIZE+DELTA ; j++ ) {
+                data[j] = i+(HDSS_RECEIVE_BUFFER_SIZE+DELTA-j);
             }
-            led_blink(300,200);
+            led_blink(100,200);
             send_bytes(data, HDSS_RECEIVE_BUFFER_SIZE+DELTA);
         }
-        led_blink(100,400);
+        led_blink(100,900);
+        led_blink(100,900);
     }
 }
