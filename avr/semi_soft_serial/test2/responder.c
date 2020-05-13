@@ -122,6 +122,17 @@ void skip_data(void)
 
 uint8_t  data[HDSS_RECEIVE_BUFFER_SIZE+DELTA*2+10];
 
+int16_t data_check(uint8_t *data, uint16_t len)
+{
+    uint8_t delta;
+    delta = data[1]-data[0];
+    for (uint16_t i = 0; i < len - 1; i++ ) {
+        if ( data[i+1] != (uint8_t)(data[i] + delta) )
+            return i;
+    }
+    return -1;
+}
+
 int main(void)
 {
     int16_t data0;
@@ -164,12 +175,14 @@ int main(void)
     }
 #else
     /* BULK bytes read together. */
+    int errcount = 0;
     while(1) {
  #ifdef PARITY_ENABLE
         hdss_set_parity_mode_even(true);
  #endif
         uint16_t i;
-        uint8_t err = 0;
+        uint8_t  err = 0;
+        int16_t  errpos;
         for (i = 0; i < BULK; i++ ) {
             data0 = receive_byte();
             if (data0 >= 0) {
@@ -183,11 +196,22 @@ int main(void)
             }
         }
         debug_print_send_bytes(data, i, false);
+        if ( (errpos = data_check(data, BULK)) >= 0 ) {
+            err = 1;
+            data[0] = 0x0;
+            data[1] = 0x55;
+            data[2] = errpos;
+            data[3] = 0x0;
+            debug_print_send_bytes(data, 4, false);
+        }
         if (err) {
+            errcount++;
             DEBUG_PIN_ON;
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                DELAY(3000);
-            }
+            do {
+                ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+                    DELAY(3000);
+                }
+            } while (errcount > 2);
             DEBUG_PIN_OFF;
             skip_data();
             err = 0;
