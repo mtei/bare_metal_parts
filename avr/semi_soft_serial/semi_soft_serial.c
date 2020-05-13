@@ -356,10 +356,21 @@ void hdss_responder_init(void)
   #define HDSS_RECEIVE_BUFFER_SIZE 8
 #endif
 
+#if (HDSS_RECEIVE_BUFFER_SIZE & (HDSS_RECEIVE_BUFFER_SIZE - 1)) == 0
+  #define BUFFER_SIZE_IS_POWER_OF_TWO
+#else
+  #undef BUFFER_SIZE_IS_POWER_OF_TWO
+#endif
+
 typedef struct receive_buf_t {
     uint8_t  status;
     uint8_t  count;
+#ifdef BUFFER_SIZE_IS_POWER_OF_TWO
     uint8_t  index;
+#else
+    uint8_t  putp;
+    uint8_t  getp;
+#endif
     uint8_t  buf[HDSS_RECEIVE_BUFFER_SIZE];
 } receive_buf_t;
 
@@ -368,11 +379,19 @@ static receive_buf_t receive_buf = {};
 static inline
 void queue_data(uint8_t data)
 {
-    uint8_t index;
     if (receive_buf.count < sizeof(receive_buf.buf)) {
+#ifdef BUFFER_SIZE_IS_POWER_OF_TWO
+        uint8_t index;
         index = (receive_buf.index+receive_buf.count) % sizeof(receive_buf.buf);
         receive_buf.buf[index] = data;
         receive_buf.count ++;
+#else
+        receive_buf.buf[receive_buf.putp] = data;
+        receive_buf.count++;
+        receive_buf.putp++;
+        if (receive_buf.putp >= sizeof(receive_buf.buf))
+            receive_buf.putp = 0;
+#endif
     }
 }
 
@@ -381,9 +400,17 @@ int16_t dequeue_data(void)
 {
     uint8_t result;
     if (receive_buf.count > 0) {
+#ifdef BUFFER_SIZE_IS_POWER_OF_TWO
         result = receive_buf.buf[receive_buf.index];
         receive_buf.count --;
         receive_buf.index = (receive_buf.index + 1) % sizeof(receive_buf.buf);
+#else
+        result = receive_buf.buf[receive_buf.getp];
+        receive_buf.count--;
+        receive_buf.getp++;
+        if (receive_buf.getp >= sizeof(receive_buf.buf))
+            receive_buf.getp = 0;
+#endif
         return result;
     }
     return HDSS_NO_DATA;
