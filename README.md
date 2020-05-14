@@ -1,2 +1,2 @@
 # bare_metal_parts
-Bear-Metal environment small routines for AVR, ARM etc.
+Software parts for Bear-Metal environments for AVR, ARM, etc.
