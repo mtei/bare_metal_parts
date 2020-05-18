@@ -40,6 +40,7 @@ CFLAGS += -Os -fno-aggressive-loop-optimizations -Wall -Wstrict-prototypes
 CPPFLAGS += -I../../common -I..
 #CPPFLAGS += -DPARITY_ENABLE
 CPPFLAGS += -DHDSS_DEBUG_PIN=B,5
+CPPFLAGS += -DHDSS_DEBUG_PIN2=B,6
 ifneq ($(strip $(BUFFER_SIZE)),)
   CPPFLAGS += -DHDSS_RECEIVE_BUFFER_SIZE=$(BUFFER_SIZE)
 else

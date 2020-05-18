@@ -17,6 +17,16 @@
 #define DEBUG_PIN_OFF
 #endif
 
+#ifdef HDSS_DEBUG_PIN2
+#define DEBUG_PIN2_INIT DDRx(HDSS_DEBUG_PIN2) |= _BV(P_BITx(HDSS_DEBUG_PIN2));
+#define DEBUG_PIN2_ON   PORTx(HDSS_DEBUG_PIN2) |= _BV(P_BITx(HDSS_DEBUG_PIN2));
+#define DEBUG_PIN2_OFF  PORTx(HDSS_DEBUG_PIN2) &= ~_BV(P_BITx(HDSS_DEBUG_PIN2));
+#else
+#define DEBUG_PIN2_INIT
+#define DEBUG_PIN2_ON
+#define DEBUG_PIN2_OFF
+#endif
+
 #if defined(__AVR_ATmega328P__)
   #define LED_PORT  B,5    /* onboard LED */
   /* #define LED_PORT  D,7  * digital 7 */
@@ -91,7 +101,10 @@ int16_t receive_byte(void)
 {
     int16_t data;
     do {
+        DEBUG_PIN2_ON;
         data = hdss_receive_byte();
+        if (data != HDSS_NO_DATA )
+            DEBUG_PIN2_OFF;
     } while (data == HDSS_NO_DATA);
     return data;
 }
@@ -137,6 +150,8 @@ int main(void)
 {
     int16_t data0;
     disable_usb();
+    DEBUG_PIN2_INIT;
+    DEBUG_PIN2_OFF;
     hdss_responder_init();
     debug_print_initiator_init();
     led_init();
