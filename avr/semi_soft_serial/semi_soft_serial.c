@@ -342,16 +342,6 @@ void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, bool change_receive
 }
 
 #ifndef HDSS_TRANSMISSION_ONLY
-void hdss_responder_init(void)
-{
-    uint8_t sreg_prev;
-    sreg_prev = SREG;
-    cli();
-    hdss_init_common();
-    hdss_change_receiver();
-    SREG = sreg_prev;
-}
-
 #ifndef HDSS_RECEIVE_BUFFER_SIZE
   #define HDSS_RECEIVE_BUFFER_SIZE 8
 #endif
@@ -362,7 +352,7 @@ void hdss_responder_init(void)
   #undef BUFFER_SIZE_IS_POWER_OF_TWO
 #endif
 
-typedef struct receive_buf_t {
+typedef struct receive_interrupt_buffer_t {
     uint8_t  status;
     uint8_t  count;
 #ifdef BUFFER_SIZE_IS_POWER_OF_TWO
@@ -372,9 +362,19 @@ typedef struct receive_buf_t {
     uint8_t  getp;
 #endif
     uint8_t  buf[HDSS_RECEIVE_BUFFER_SIZE];
-} receive_buf_t;
+} receive_interrupt_buffer_t;
 
-static receive_buf_t receive_buf = {};
+static receive_interrupt_buffer_t receive_buf = {};
+
+void hdss_responder_init(void)
+{
+    uint8_t sreg_prev;
+    sreg_prev = SREG;
+    cli();
+    hdss_init_common();
+    hdss_change_receiver();
+    SREG = sreg_prev;
+}
 
 static inline
 void queue_data(uint8_t data)
@@ -414,6 +414,25 @@ int16_t dequeue_data(void)
         return result;
     }
     return HDSS_NO_DATA;
+}
+
+static
+int8_t convert_error_code(int8_t hderror)
+{
+    int8_t result = 0;;
+    if (hderror & FEV) {
+        result |= HDSS_ERROR_FRAMING;
+    }
+    if (hderror & UPEV) {
+        result |= HDSS_ERROR_PARITY;
+    }
+    if (hderror & DORV) {
+        result |= HDSS_ERROR_OVERUN;
+    }
+    if (hderror & BORV) {
+        result |= HDSS_ERROR_BUFFER_OVERUN;
+    }
+    return result;
 }
 
 ISR(RX_vect) {
@@ -471,22 +490,10 @@ int16_t hdss_receive_byte(void)
 
 int8_t hdss_get_receive_error(void)
 {
-    int8_t result;
+    int8_t result = 0;
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-        result = 0;
         if (receive_buf.status) {
-            if (receive_buf.status & FEV) {
-                result |= HDSS_FRAMING_ERROR;
-            }
-            if (receive_buf.status & UPEV) {
-                result |= HDSS_PARITY_ERROR;
-            }
-            if (receive_buf.status & DORV) {
-                result |= HDSS_OVERUN_ERROR;
-            }
-            if (receive_buf.status & BORV) {
-                result |= HDSS_BUFFER_OVERUN_ERROR;
-            }
+            result = convert_error_code(receive_buf.status);
             receive_buf.status = 0;
         }
     }

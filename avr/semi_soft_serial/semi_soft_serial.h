@@ -61,10 +61,10 @@ int16_t hdss_receive_byte(void);
 #define HDSS_ERROR    -2
 
 int8_t hdss_get_receive_error(void);
-#define HDSS_FRAMING_ERROR       0x01
-#define HDSS_PARITY_ERROR        0x02
-#define HDSS_OVERUN_ERROR        0x04 /* hardware buffer overrun */
-#define HDSS_BUFFER_OVERUN_ERROR 0x08 /* software buffer overrun */
+#define HDSS_ERROR_FRAMING       0x01
+#define HDSS_ERROR_PARITY        0x02
+#define HDSS_ERROR_OVERUN        0x04 /* hardware buffer overrun */
+#define HDSS_ERROR_BUFFER_OVERUN 0x08 /* software buffer overrun */
 
 #ifdef __cplusplus
 }
