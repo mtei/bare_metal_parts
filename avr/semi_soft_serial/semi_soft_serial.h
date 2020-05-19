@@ -66,6 +66,8 @@ int8_t hdss_get_receive_error(void);
 #define HDSS_ERROR_OVERUN        0x04 /* hardware buffer overrun */
 #define HDSS_ERROR_BUFFER_OVERUN 0x08 /* software buffer overrun */
 
+int16_t hdss_get_receive_counter(void);
+
 #ifdef __cplusplus
 }
 #endif

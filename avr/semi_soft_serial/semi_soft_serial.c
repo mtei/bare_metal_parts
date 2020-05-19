@@ -353,8 +353,12 @@ void HDSS_SEND_BYTES(const uint8_t *datap, uint16_t datalen, bool change_receive
 #endif
 
 typedef struct receive_interrupt_buffer_t {
-    uint8_t  status;
+#if HDSS_RECEIVE_BUFFER_SIZE < 256
     uint8_t  count;
+#else
+    uint16_t  count;
+#endif
+    uint8_t  status;
 #ifdef BUFFER_SIZE_IS_POWER_OF_TWO
     uint8_t  index;
 #else
@@ -498,6 +502,19 @@ int8_t hdss_get_receive_error(void)
         }
     }
     return result;
+}
+
+int16_t hdss_get_receive_counter(void)
+{
+#if HDSS_RECEIVE_BUFFER_SIZE < 256
+    return receive_buf.count;
+#else
+    int16_t result;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        result = receive_buf.count;
+    }
+    return result;
+#endif
 }
 
 #endif /* HDSS_TRANSMISSION_ONLY */
