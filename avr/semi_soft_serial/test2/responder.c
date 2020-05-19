@@ -199,6 +199,16 @@ int main(void)
         uint8_t  err = 0;
         int16_t  errpos;
         for (i = 0; i < BULK; i++ ) {
+#if 0
+            if ( i==2 ) {
+                for (uint8_t j = 0; j < 40; j++ ) {
+                    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+                        DEBUG_PIN2_ON;
+                        DEBUG_PIN2_OFF;
+                    }
+                }
+            }
+#endif
             data0 = receive_byte();
             if (data0 >= 0) {
                 data[i] = data0;
