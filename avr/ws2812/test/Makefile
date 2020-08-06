@@ -39,3 +39,7 @@ else
 endif
 # Arduino Uno R3: A0 pin
 ws2812_uno.o ws2812_uno.s: CPPFLAGS += -DWS2812_DI_PIN=C,0
+
+ifneq  ($(strip $(LED_NUMS)),)
+  rgbled_test_pro.o rgbled_test_uno.o: CPPFLAGS += -DLED_NUMS=$(LED_NUMS)
+endif
