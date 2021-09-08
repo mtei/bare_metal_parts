@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+/* See here for how to use this. (https://github.com/mtei/bare_metal_parts/tree/master/cpp/map) */
 
 #ifndef CPP_MAP_H
 #define CPP_MAP_H
