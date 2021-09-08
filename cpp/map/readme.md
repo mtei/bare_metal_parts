@@ -106,20 +106,20 @@ Macro expansion result.
 "GET_ITEM_COUNT( WXYZ_LIST )" -> 4
 ```
 
-## Application example
+## Application example 1
 
 If you have the following source code
 ```c
 void init_pins(void)
 {
-    gpio_mode_set(B9, INPUT_PULLUP);
-    gpio_mode_set(A2, INPUT_PULLUP);
-    gpio_mode_set(C4, INPUT_PULLUP);
+    gpio_pin_mode_set(B7, INPUT_PULLUP);
+    gpio_pin_mode_set(A2, INPUT_PULLUP);
+    gpio_pin_mode_set(C4, INPUT_PULLUP);
 }
 
 void read_pins(gpio_pin_t *pin_buf)
 {
-    pin_buf[0] = gpio_read_pin(B9);
+    pin_buf[0] = gpio_read_pin(B7);
     pin_buf[1] = gpio_read_pin(A2);
     pin_buf[2] = gpio_read_pin(C4);
 }
@@ -140,15 +140,15 @@ uint16_t read_bind_pins(void)
 }
 ```
 
-It can be made comfigable by using the MAP () macro as shown below.
+It can be made comfigable by using the `MAP()` macro as shown below.
 ```c
-#define PIN_LIST B9,A2,C4
+#define PIN_LIST B7,A2,C4
 
 #include "cpp_map.h"
 
 void init_pins(void)
 {
-#define INIT_A_PIN(pin) gpio_mode_set(pin, INPUT_PULLUP);
+#define INIT_A_PIN(pin) gpio_pin_mode_set(pin, INPUT_PULLUP);
     MAP(INIT_A_PIN, PIN_LIST)
 }
 
@@ -172,5 +172,88 @@ uint16_t read_bind_pins(void)
     init_pins();
     read_pins(pin_buffer);
     return bind_pins(pin_buffer);
+}
+```
+
+## Application example 2
+
+If you have the following source code
+```c
+enum port_buffer_index {
+    port_index_B = 0,
+    port_index_A = 1,
+    number_of_port
+};
+
+void init_port_pins(void)
+{
+    gpio_port_mode_set(B, 7, INPUT_PULLUP); /* port B bit 7 */
+    gpio_port_mode_set(A, 2, INPUT_PULLUP); /* port A bit 2 */
+    gpio_port_mode_set(B, 4, INPUT_PULLUP); /* port B bit 4 */
+}
+
+void read_ports(gpio_port_t *port_buf)
+{
+    port_buf[port_index_B] = gpio_read_port(B);
+    port_buf[port_index_A] = gpio_read_port(A);
+}
+
+uint16_t bind_pins(gpio_port_t *port_buf)
+{
+    return ((port_buf[port_index_B] & (1<<7)) ? 0 : (1<<0)) |
+           ((port_buf[port_index_A] & (1<<2)) ? 0 : (1<<1)) |
+           ((port_buf[port_index_B] & (1<<4)) ? 0 : (1<<2));
+}
+
+uint16_t read_bind_pins(void)
+{
+    gpio_port_t port_buffer[2];
+    init_port_pins();
+    read_ports(port_buffer);
+    return bind_pins(port_buffer);
+}
+```
+
+It can be made comfigable by using the `MAP()` macro as shown below.
+```c
+#define PORT_LIST B,A
+#define PIN_LIST (B,7), (A,2), (B,2)
+
+#include "cpp_map.h"
+
+enum port_buffer_index {
+#define PORT_INDEX(index,port) port_index_##port = index,
+    MAP_INDEX(PORT_INDEX,PORT_LIST)
+    number_of_port
+};
+
+void init_port_pins(void)
+{
+#define _INIT_A_PORT_PIN(port,bit) gpio_port_mode_set(port, bit, INPUT_PULLUP);
+#define INIT_A_PORT_PIN(portbit) _INIT_A_PORT_PIN portbit
+    MAP(INIT_A_PORT_PIN, PIN_LIST)
+}
+
+void read_ports(gpio_port_t *port_buf)
+{
+#define READ_A_PORT(port) port_buf[port_index_##port] = gpio_read_port(port);
+    MAP(READ_A_PORT, PORT_LIST)
+}
+
+uint16_t bind_pins(gpio_port_t *port_buf)
+{
+#define _BIND_A_PIN(port, bit) (port_buf[port_index_##port] & (1<<bit))
+#define BIND_A_PIN(index,portbit) (_BIND_A_PIN portbit ? 0 : (1<<index)) |
+    return
+        MAP_INDEX(BIND_A_PIN, PIN_LIST)
+        0;
+}
+
+uint16_t read_bind_pins(void)
+{
+    gpio_port_t port_buffer[number_of_port];
+    init_port_pins();
+    read_ports(port_buffer);
+    return bind_pins(port_buffer);
 }
 ```
