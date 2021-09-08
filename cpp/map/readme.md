@@ -168,7 +168,7 @@ uint16_t bind_pins(gpio_pin_t *pin_buf)
 
 uint16_t read_bind_pins(void)
 {
-    gpio_pin_t pin_buffer[3];
+    gpio_pin_t pin_buffer[GET_ITEM_COUNT(PIN_LIST)];
     init_pins();
     read_pins(pin_buffer);
     return bind_pins(pin_buffer);
