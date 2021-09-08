@@ -17,6 +17,17 @@ gcc -E -C cpp_map_test.c | sed '/^gcc/,/-start-/d' */
 // #define OPQR_LIST o,p,q,r
 "MAP(MF, OPQR_LIST)" -> MAP(MF, OPQR_LIST)
 
+#define NESTED_LIST (a,b,c), (d,e,f), (g,h,i)
+// #define NESTED_LIST (a,b,c), (d,e,f), (g,h,i)
+"MAP(NSL, NESTED_LIST)" -> MAP(NSL, NESTED_LIST)
+#define NSL(p)  _NSL p
+// #define NSL(p)  _NSL p
+"MAP(NSL, NESTED_LIST)" -> MAP(NSL, NESTED_LIST)
+#define _NSL(x,y,z)  "x"=x, "y"=y, "z"=z;
+// #define _NSL(x,y,z)  "x"=x, "y"=y, "z"=z;
+"MAP(NSL, NESTED_LIST)" -> MAP(NSL, NESTED_LIST)
+
+// MAP_INDEX
 "MAP_INDEX(I, a,b,c)" -> MAP_INDEX(I, a,b,c)
 "MAP_INDEX(I, ABC_LIST)" -> MAP_INDEX(I, ABC_LIST)
 
