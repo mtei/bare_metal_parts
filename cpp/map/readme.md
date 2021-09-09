@@ -57,6 +57,33 @@ Macro expansion result.
 "MAP(MF, OPQR_LIST)" -> "arg" is o; "arg" is p; "arg" is q; "arg" is r;
 ```
 
+You can also handle lists of lists. This requires a two-step macro to expand.
+
+The source file.
+```c
+#define NESTED_LIST (a,b,c), (d,e,f), (g,h,i)
+// #define NESTED_LIST (a,b,c), (d,e,f), (g,h,i)
+"MAP(NSL, NESTED_LIST)" -> MAP(NSL, NESTED_LIST)
+#define NSL(p)  _NSL p
+// #define NSL(p)  _NSL p
+"MAP(NSL, NESTED_LIST)" -> MAP(NSL, NESTED_LIST)
+#define _NSL(x,y,z)  "x"=x, "y"=y, "z"=z;
+// #define _NSL(x,y,z)  "x"=x, "y"=y, "z"=z;
+"MAP(NSL, NESTED_LIST)" -> MAP(NSL, NESTED_LIST)
+```
+Macro expansion result.
+```c
+
+// #define NESTED_LIST (a,b,c), (d,e,f), (g,h,i)
+"MAP(NSL, NESTED_LIST)" -> NSL((a,b,c)) NSL((d,e,f)) NSL((g,h,i))
+
+// #define NSL(p)  _NSL p
+"MAP(NSL, NESTED_LIST)" -> _NSL (a,b,c) _NSL (d,e,f) _NSL (g,h,i)
+
+// #define _NSL(x,y,z)  "x"=x, "y"=y, "z"=z;
+"MAP(NSL, NESTED_LIST)" -> "x"=a, "y"=b, "z"=c; "x"=d, "y"=e, "z"=f; "x"=g, "y"=h, "z"=i;
+```
+
 ## `MAP_INDEX(...)`
 
 `MAP_INDEX (...)` is similar to `MAP (...)`. The first argument and the second and subsequent arguments are combined and expanded in the following format with the index number.
