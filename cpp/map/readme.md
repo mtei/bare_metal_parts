@@ -33,6 +33,7 @@ The source file.
 ```
 Macro expansion result.
 ```c
+
 // #define ABC_LIST a,b,c
 "MAP(F, ABC_LIST)" -> F(a) F(b) F(c)
 ```
@@ -50,6 +51,7 @@ The source file.
 ```
 Macro expansion result.
 ```c
+
 // #define MF(arg)  "arg" is arg;
 "MAP(MF, o,p,q,r)" -> "arg" is o; "arg" is p; "arg" is q; "arg" is r;
 
@@ -167,27 +169,27 @@ uint16_t read_bind_pins(void)
 }
 ```
 
-It can be made comfigable by using the `MAP()` macro as shown below.
+It can be made configable by using the `MAP()` macro as shown below.
 ```c
 #define PIN_LIST B7,A2,C4
 
 #include "cpp_map.h"
 
+#define INIT_A_PIN(pin) gpio_pin_mode_set(pin, INPUT_PULLUP);
 void init_pins(void)
 {
-#define INIT_A_PIN(pin) gpio_pin_mode_set(pin, INPUT_PULLUP);
     MAP(INIT_A_PIN, PIN_LIST)
 }
 
+#define READ_A_PIN(index, pin) pin_buf[index] = gpio_read_pin(pin);
 void read_pins(gpio_pin_t *pin_buf)
 {
-#define READ_A_PIN(index, pin) pin_buf[index] = gpio_read_pin(pin);
     MAP_INDEX(READ_A_PIN, PIN_LIST)
 }
 
+#define BIND_A_PIN(index, pin) (pin_buf[index] ? 0 : (1<<index)) |
 uint16_t bind_pins(gpio_pin_t *pin_buf)
 {
-#define BIND_A_PIN(index, pin) (pin_buf[index] ? 0 : (1<<index)) |
     return
         MAP_INDEX(BIND_A_PIN, PIN_LIST)
         0;
@@ -241,36 +243,36 @@ uint16_t read_bind_pins(void)
 }
 ```
 
-It can be made comfigable by using the `MAP()` macro as shown below.
+It can be made configable by using the `MAP()` macro as shown below.
 ```c
 #define PORT_LIST B,A
 #define PIN_LIST (B,7), (A,2), (B,2)
 
 #include "cpp_map.h"
 
-enum port_buffer_index {
 #define PORT_INDEX(index,port) port_index_##port = index,
+enum port_buffer_index {
     MAP_INDEX(PORT_INDEX,PORT_LIST)
     number_of_port
 };
 
-void init_port_pins(void)
-{
 #define _INIT_A_PORT_PIN(port,bit) gpio_port_mode_set(port, bit, INPUT_PULLUP);
 #define INIT_A_PORT_PIN(portbit) _INIT_A_PORT_PIN portbit
+void init_port_pins(void)
+{
     MAP(INIT_A_PORT_PIN, PIN_LIST)
 }
 
+#define READ_A_PORT(port) port_buf[port_index_##port] = gpio_read_port(port);
 void read_ports(gpio_port_t *port_buf)
 {
-#define READ_A_PORT(port) port_buf[port_index_##port] = gpio_read_port(port);
     MAP(READ_A_PORT, PORT_LIST)
 }
 
-uint16_t bind_pins(gpio_port_t *port_buf)
-{
 #define _BIND_A_PIN(port, bit) (port_buf[port_index_##port] & (1<<bit))
 #define BIND_A_PIN(index,portbit) (_BIND_A_PIN portbit ? 0 : (1<<index)) |
+uint16_t bind_pins(gpio_port_t *port_buf)
+{
     return
         MAP_INDEX(BIND_A_PIN, PIN_LIST)
         0;
