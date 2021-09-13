@@ -3,7 +3,9 @@
 `cpp_map.h` is a header file that provides the following macros.
 
 * MAP(...)
+* MAPT(...)
 * MAP_INDEX(...)
+* MAPT_INDEX(...)
 * GET_ITEM_COUNT(...)
 
 ## `MAP(...)`
@@ -86,6 +88,23 @@ Macro expansion result.
 "MAP(NSL, NESTED_LIST)" -> "x"=a, "y"=b, "z"=c; "x"=d, "y"=e, "z"=f; "x"=g, "y"=h, "z"=i;
 ```
 
+## `MAPT(...)`
+`MAPT(...)` is very similar to `MAP(...)`, but it has more arguments to specify a function-like macro and applies that macro to the last argument.
+
+The source file.
+```c
+"MAPT(F,FT, a)" -> MAPT(F,FT, a)
+"MAPT(F,FT, a,b)" -> MAPT(F,FT, a,b)
+"MAPT(F,FT, a,b,c)" -> MAPT(F,FT, a,b,c)
+```
+Macro expansion result.
+```c
+"MAPT(F,FT, a)" -> FT(a)
+"MAPT(F,FT, a,b)" -> F(a) FT(b)
+"MAPT(F,FT, a,b,c)" -> F(a) F(b) FT(c)
+"MAPT(F,FT, ABC_LIST)" -> F(a) F(b) FT(c)
+```
+
 ## `MAP_INDEX(...)`
 
 `MAP_INDEX (...)` is similar to `MAP (...)`. The first argument and the second and subsequent arguments are combined and expanded in the following format with the index number.
@@ -109,6 +128,21 @@ Macro expansion result.
 // #define MFI(index, arg)  "arg"[index] is arg;
 "MAP_INDEX(MFI, o,p,q,r)" -> "arg"[0] is o; "arg"[1] is p; "arg"[2] is q; "arg"[3] is r;
 "MAP_INDEX(MFI, OPQR_LIST)" -> "arg"[0] is o; "arg"[1] is p; "arg"[2] is q; "arg"[3] is r;
+```
+
+## `MAPT_INDEX(...)`
+
+`MAPT_INDEX(...)` is very similar to `MAP_INDEX(...)`, but it has more arguments to specify a function-like macro and applies that macro to the last argument.
+
+The source file.
+```c
+"MAPT_INDEX(I,T, a,b,c)" -> MAPT_INDEX(I,T, a,b,c)
+"MAPT_INDEX(I,T, ABC_LIST)" -> MAPT_INDEX(I,T, ABC_LIST)
+```
+Macro expansion result.
+```c
+"MAPT_INDEX(I,T, a,b,c)" -> I(0,a) I(1,b) T(2,c)
+"MAPT_INDEX(I,T, ABC_LIST)" -> I(0,a) I(1,b) T(2,c)
 ```
 
 ## `GET_ITEM_COUNT(...)`
@@ -187,12 +221,11 @@ void read_pins(gpio_pin_t *pin_buf)
     MAP_INDEX(READ_A_PIN, PIN_LIST)
 }
 
-#define BIND_A_PIN(index, pin) (pin_buf[index] ? 0 : (1<<index)) |
+#define BIND_A_PIN_T(index, pin) (pin_buf[index] ? 0 : (1<<index))
+#define BIND_A_PIN(index, pin)    BIND_A_PIN_T(index, pin) |
 uint16_t bind_pins(gpio_pin_t *pin_buf)
 {
-    return
-        MAP_INDEX(BIND_A_PIN, PIN_LIST)
-        0;
+    return MAPT_INDEX(BIND_A_PIN, BIND_A_PIN_T, PIN_LIST);
 }
 
 uint16_t read_bind_pins(void)
@@ -269,13 +302,12 @@ void read_ports(gpio_port_t *port_buf)
     MAP(READ_A_PORT, PORT_LIST)
 }
 
-#define _BIND_A_PIN(port, bit) (port_buf[port_index_##port] & (1<<bit))
-#define BIND_A_PIN(index,portbit) (_BIND_A_PIN portbit ? 0 : (1<<index)) |
+#define _BIND_A_PIN_T(port, bit) (port_buf[port_index_##port] & (1<<bit))
+#define BIND_A_PIN_T(index,portbit) (_BIND_A_PIN_T portbit ? 0 : (1<<index))
+#define BIND_A_PIN(index,portbit) BIND_A_PIN_T(index,portbit) |
 uint16_t bind_pins(gpio_port_t *port_buf)
 {
-    return
-        MAP_INDEX(BIND_A_PIN, PIN_LIST)
-        0;
+    return MAPT_INDEX(BIND_A_PIN, BIND_A_PIN_T, PIN_LIST);
 }
 
 uint16_t read_bind_pins(void)
